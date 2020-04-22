@@ -25,8 +25,6 @@ module.exports = function(app, passport) {
             failureFlash : true // allow flash messages
 		}),
         function(req, res) {
-            console.log("hello");
-
             if (req.body.remember) {
               req.session.cookie.maxAge = 1000 * 60 * 3;
             } else {
@@ -44,12 +42,17 @@ module.exports = function(app, passport) {
 		res.render('signup.ejs', { message: req.flash('signupMessage') });
 	});
 
-	// process the signup form
-	app.post('/signup', passport.authenticate('local-signup', {
-		successRedirect : '/profile', // redirect to the secure profile section
-		failureRedirect : '/signup', // redirect back to the signup page if there is an error
-		failureFlash : true // allow flash messages
-	}));
+  // process the signup form
+  app.post('/api/signup', (req, res, next) => {
+    passport.authenticate('local-signup', (err, user, info) => {
+      if (err) return res.json({ err: true, msg: err.message });
+      if (!user) return res.json(info);
+      req.logIn(user, function(err) {
+        if (err) return res.json({ err: true, msg: err.message });
+        return res.send('cool, you signed up');
+      });
+    })(req, res, next);
+  });
 
 	// =====================================
 	// PROFILE SECTION =========================
