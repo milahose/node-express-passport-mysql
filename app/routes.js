@@ -18,20 +18,19 @@ module.exports = function(app, passport) {
 		res.render('login.ejs', { message: req.flash('loginMessage') });
 	});
 
-	// process the login form
-	app.post('/login', passport.authenticate('local-login', {
-            successRedirect : '/profile', // redirect to the secure profile section
-            failureRedirect : '/login', // redirect back to the signup page if there is an error
-            failureFlash : true // allow flash messages
-		}),
-        function(req, res) {
-            if (req.body.remember) {
-              req.session.cookie.maxAge = 1000 * 60 * 3;
-            } else {
-              req.session.cookie.expires = false;
-            }
-        res.redirect('/');
-    });
+  // process the login form
+  app.post('/api/login', (req, res, next) => {
+    passport.authenticate('local-login', (err, user, info) => {
+      if (err) return res.json({ err: true, msg: err.message });
+      if (!user) return res.json(info);
+      req.logIn(user, function(err) {
+        if (err) return res.json({ err: true, msg: err.message });
+
+        req.session.cookie.expires = false;
+        return res.json({ err: false, data: user });
+      });
+    })(req, res, next);
+  });
 
 	// =====================================
 	// SIGNUP ==============================
@@ -49,7 +48,7 @@ module.exports = function(app, passport) {
       if (!user) return res.json(info);
       req.logIn(user, function(err) {
         if (err) return res.json({ err: true, msg: err.message });
-        return res.send('cool, you signed up');
+        return res.json({ err: false, data: user });
       });
     })(req, res, next);
   });
@@ -59,10 +58,8 @@ module.exports = function(app, passport) {
 	// =====================================
 	// we will want this protected so you have to be logged in to visit
 	// we will use route middleware to verify this (the isLoggedIn function)
-	app.get('/profile', isLoggedIn, function(req, res) {
-		res.render('profile.ejs', {
-			user : req.user // get the user out of session and pass to template
-		});
+	app.get('/api/profile', isLoggedIn, function(req, res) {
+    return res.json({ err: false, data: req.user });
 	});
 
 	// =====================================
@@ -76,11 +73,10 @@ module.exports = function(app, passport) {
 
 // route middleware to make sure
 function isLoggedIn(req, res, next) {
-
 	// if user is authenticated in the session, carry on
-	if (req.isAuthenticated())
-		return next();
-
-	// if they aren't redirect them to the home page
-	res.redirect('/');
+	if (req.isAuthenticated()) {
+    return next();
+  } else {
+    return res.json({ err: true, msg: 'Unable to authenticate user.' });
+  }
 }
